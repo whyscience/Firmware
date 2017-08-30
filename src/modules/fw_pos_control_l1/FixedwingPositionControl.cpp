@@ -40,7 +40,7 @@ static int _control_task = -1;			///< task handle for sensor task */
 
 FixedwingPositionControl::FixedwingPositionControl() :
 	_sub_airspeed(ORB_ID(airspeed), 0, 0, nullptr),
-	_sub_sensors(ORB_ID(sensor_corrected), 0, 0, nullptr),
+	_sub_sensors(ORB_ID(sensor_bias), 0, 0, nullptr),
 	_loop_perf(perf_alloc(PC_ELAPSED, "fw l1 control"))
 {
 	_parameter_handles.l1_period = param_find("FW_L1_PERIOD");

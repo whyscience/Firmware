@@ -76,7 +76,7 @@
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/sensor_gyro.h>
 #include <uORB/topics/sensor_correction.h>
-#include <uORB/topics/sensor_corrected.h>
+#include <uORB/topics/sensor_bias.h>
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_attitude_setpoint.h>
 #include <uORB/topics/vehicle_control_mode.h>
@@ -141,7 +141,7 @@ private:
 	int 	_battery_status_sub;	/**< battery status subscription */
 	int		_sensor_gyro_sub[MAX_GYRO_COUNT];	/**< gyro data subscription */
 	int		_sensor_correction_sub;	/**< sensor thermal correction subscription */
-	int		_sensor_corrected_sub;	/**< sensor in-run bias correction subscription */
+	int		_sensor_bias_sub;	/**< sensor in-run bias correction subscription */
 
 	unsigned _gyro_count;
 	int _selected_gyro;
@@ -168,7 +168,7 @@ private:
 	struct battery_status_s				_battery_status;	/**< battery status */
 	struct sensor_gyro_s			_sensor_gyro;		/**< gyro data before thermal correctons and ekf bias estimates are applied */
 	struct sensor_correction_s		_sensor_correction;		/**< sensor thermal corrections */
-	struct sensor_corrected_s		_sensor_corrected;		/**< sensor in-run bias corrections */
+	struct sensor_bias_s		_sensor_bias;		/**< sensor in-run bias corrections */
 
 	union {
 		struct {
@@ -366,7 +366,7 @@ private:
 	/**
 	 * Check for sensor in-run bias correction updates.
 	 */
-	void		sensor_corrected_poll();
+	void		sensor_bias_poll();
 
 	/**
 	 * Shim for calling task_main from task_create.
@@ -401,7 +401,7 @@ MulticopterAttitudeControl::MulticopterAttitudeControl() :
 	_motor_limits_sub(-1),
 	_battery_status_sub(-1),
 	_sensor_correction_sub(-1),
-	_sensor_corrected_sub(-1),
+	_sensor_bias_sub(-1),
 
 	/* gyro selection */
 	_gyro_count(1),
@@ -429,7 +429,7 @@ MulticopterAttitudeControl::MulticopterAttitudeControl() :
 	_battery_status{},
 	_sensor_gyro{},
 	_sensor_correction{},
-	_sensor_corrected{},
+	_sensor_bias{},
 
 	_saturation_status{},
 	/* performance counters */
@@ -841,14 +841,14 @@ MulticopterAttitudeControl::sensor_correction_poll()
 }
 
 void
-MulticopterAttitudeControl::sensor_corrected_poll()
+MulticopterAttitudeControl::sensor_bias_poll()
 {
 	/* check if there is a new message */
 	bool updated;
-	orb_check(_sensor_corrected_sub, &updated);
+	orb_check(_sensor_bias_sub, &updated);
 
 	if (updated) {
-		orb_copy(ORB_ID(sensor_corrected), _sensor_corrected_sub, &_sensor_corrected);
+		orb_copy(ORB_ID(sensor_bias), _sensor_bias_sub, &_sensor_bias);
 	}
 
 }
@@ -1033,9 +1033,9 @@ MulticopterAttitudeControl::control_attitude_rates(float dt)
 	rates = _board_rotation * rates;
 
 	// correct for in-run bias errors
-	rates(0) -= _sensor_corrected.gyro_x_bias;
-	rates(1) -= _sensor_corrected.gyro_y_bias;
-	rates(2) -= _sensor_corrected.gyro_z_bias;
+	rates(0) -= _sensor_bias.gyro_x_bias;
+	rates(1) -= _sensor_bias.gyro_y_bias;
+	rates(2) -= _sensor_bias.gyro_z_bias;
 
 	math::Vector<3> rates_p_scaled = _params.rate_p.emult(pid_attenuations(_params.tpa_breakpoint_p, _params.tpa_rate_p));
 	//math::Vector<3> rates_i_scaled = _params.rate_i.emult(pid_attenuations(_params.tpa_breakpoint_i, _params.tpa_rate_i));
@@ -1131,7 +1131,7 @@ MulticopterAttitudeControl::task_main()
 	}
 
 	_sensor_correction_sub = orb_subscribe(ORB_ID(sensor_correction));
-	_sensor_corrected_sub = orb_subscribe(ORB_ID(sensor_corrected));
+	_sensor_bias_sub = orb_subscribe(ORB_ID(sensor_bias));
 
 	/* initialize parameters cache */
 	parameters_update();
@@ -1189,7 +1189,7 @@ MulticopterAttitudeControl::task_main()
 			battery_status_poll();
 			vehicle_attitude_poll();
 			sensor_correction_poll();
-			sensor_corrected_poll();
+			sensor_bias_poll();
 
 			/* Check if we are in rattitude mode and the pilot is above the threshold on pitch
 			 * or roll (yaw can rotate 360 in normal att control).  If both are true don't

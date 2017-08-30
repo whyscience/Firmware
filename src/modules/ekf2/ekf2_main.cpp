@@ -67,7 +67,7 @@
 
 #include <uORB/topics/sensor_combined.h>
 #include <uORB/topics/sensor_selection.h>
-#include <uORB/topics/sensor_corrected.h>
+#include <uORB/topics/sensor_bias.h>
 #include <uORB/topics/vehicle_gps_position.h>
 #include <uORB/topics/airspeed.h>
 #include <uORB/topics/vehicle_attitude.h>
@@ -177,7 +177,7 @@ private:
 	orb_advert_t _estimator_innovations_pub;
 	orb_advert_t _replay_pub;
 	orb_advert_t _ekf2_timestamps_pub;
-	orb_advert_t _sensor_corrected_pub;
+	orb_advert_t _sensor_bias_pub;
 
 	// Used to correct baro data for positional errors
 	Vector3f _vel_body_wind = {};	// XYZ velocity relative to wind in body frame (m/s)
@@ -348,7 +348,7 @@ Ekf2::Ekf2():
 	_estimator_innovations_pub(nullptr),
 	_replay_pub(nullptr),
 	_ekf2_timestamps_pub(nullptr),
-	_sensor_corrected_pub(nullptr),
+	_sensor_bias_pub(nullptr),
 	_params(_ekf.getParamHandle()),
 	_obs_dt_min_ms(this, "EKF2_MIN_OBS_DT", false, _params->sensor_interval_min_ms),
 	_mag_delay_ms(this, "EKF2_MAG_DELAY", false, _params->mag_delay_ms),
@@ -1011,39 +1011,39 @@ void Ekf2::run()
 
 			// publish all corrected sensor readings and bias estimates after mag calibration is updated above
 			{
-				struct sensor_corrected_s corr = {};
+				struct sensor_bias_s bias = {};
 
-				corr.timestamp = now;
+				bias.timestamp = now;
 
-				corr.gyro_x = sensors.gyro_rad[0] - gyro_bias[0];
-				corr.gyro_y = sensors.gyro_rad[1] - gyro_bias[1];
-				corr.gyro_z = sensors.gyro_rad[2] - gyro_bias[2];
+				bias.gyro_x = sensors.gyro_rad[0] - gyro_bias[0];
+				bias.gyro_y = sensors.gyro_rad[1] - gyro_bias[1];
+				bias.gyro_z = sensors.gyro_rad[2] - gyro_bias[2];
 
-				corr.accel_x = sensors.accelerometer_m_s2[0] - accel_bias[0];
-				corr.accel_y = sensors.accelerometer_m_s2[1] - accel_bias[1];
-				corr.accel_z = sensors.accelerometer_m_s2[2] - accel_bias[2];
+				bias.accel_x = sensors.accelerometer_m_s2[0] - accel_bias[0];
+				bias.accel_y = sensors.accelerometer_m_s2[1] - accel_bias[1];
+				bias.accel_z = sensors.accelerometer_m_s2[2] - accel_bias[2];
 
-				corr.mag_x = sensors.magnetometer_ga[0] - (_last_valid_mag_cal[0] / 1000.0f); // mGauss -> Gauss
-				corr.mag_y = sensors.magnetometer_ga[1] - (_last_valid_mag_cal[1] / 1000.0f); // mGauss -> Gauss
-				corr.mag_z = sensors.magnetometer_ga[2] - (_last_valid_mag_cal[2] / 1000.0f); // mGauss -> Gauss
+				bias.mag_x = sensors.magnetometer_ga[0] - (_last_valid_mag_cal[0] / 1000.0f); // mGauss -> Gauss
+				bias.mag_y = sensors.magnetometer_ga[1] - (_last_valid_mag_cal[1] / 1000.0f); // mGauss -> Gauss
+				bias.mag_z = sensors.magnetometer_ga[2] - (_last_valid_mag_cal[2] / 1000.0f); // mGauss -> Gauss
 
-				corr.gyro_x_bias = gyro_bias[0];
-				corr.gyro_y_bias = gyro_bias[1];
-				corr.gyro_z_bias = gyro_bias[2];
+				bias.gyro_x_bias = gyro_bias[0];
+				bias.gyro_y_bias = gyro_bias[1];
+				bias.gyro_z_bias = gyro_bias[2];
 
-				corr.accel_x_bias = accel_bias[0];
-				corr.accel_y_bias = accel_bias[1];
-				corr.accel_z_bias = accel_bias[2];
+				bias.accel_x_bias = accel_bias[0];
+				bias.accel_y_bias = accel_bias[1];
+				bias.accel_z_bias = accel_bias[2];
 
-				corr.mag_x_bias = _last_valid_mag_cal[0];
-				corr.mag_y_bias = _last_valid_mag_cal[1];
-				corr.mag_z_bias = _last_valid_mag_cal[2];
+				bias.mag_x_bias = _last_valid_mag_cal[0];
+				bias.mag_y_bias = _last_valid_mag_cal[1];
+				bias.mag_z_bias = _last_valid_mag_cal[2];
 
-				if (_sensor_corrected_pub == nullptr) {
-					_sensor_corrected_pub = orb_advertise(ORB_ID(sensor_corrected), &corr);
+				if (_sensor_bias_pub == nullptr) {
+					_sensor_bias_pub = orb_advertise(ORB_ID(sensor_bias), &bias);
 
 				} else {
-					orb_publish(ORB_ID(sensor_corrected), _sensor_corrected_pub, &corr);
+					orb_publish(ORB_ID(sensor_bias), _sensor_bias_pub, &bias);
 				}
 			}
 

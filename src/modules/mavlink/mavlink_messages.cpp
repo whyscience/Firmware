@@ -77,7 +77,7 @@
 #include <uORB/topics/optical_flow.h>
 #include <uORB/topics/position_setpoint_triplet.h>
 #include <uORB/topics/sensor_combined.h>
-#include <uORB/topics/sensor_corrected.h>
+#include <uORB/topics/sensor_bias.h>
 #include <uORB/topics/tecs_status.h>
 #include <uORB/topics/telemetry_status.h>
 #include <uORB/topics/transponder_report.h>
@@ -652,7 +652,7 @@ protected:
 	explicit MavlinkStreamHighresIMU(Mavlink *mavlink) : MavlinkStream(mavlink),
 		_sensor_sub(_mavlink->add_orb_subscription(ORB_ID(sensor_combined))),
 		_sensor_time(0),
-		_bias_sub(_mavlink->add_orb_subscription(ORB_ID(sensor_corrected))),
+		_bias_sub(_mavlink->add_orb_subscription(ORB_ID(sensor_bias))),
 		_bias_time(0),
 		_differential_pressure_sub(_mavlink->add_orb_subscription(ORB_ID(differential_pressure))),
 		_differential_pressure_time(0),
@@ -665,7 +665,7 @@ protected:
 	bool send(const hrt_abstime t)
 	{
 		struct sensor_combined_s sensor = {};
-		struct sensor_corrected_s bias = {};
+		struct sensor_bias_s bias = {};
 		struct differential_pressure_s differential_pressure = {};
 
 		if (_sensor_sub->update(&_sensor_time, &sensor)) {
